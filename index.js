@@ -55,6 +55,15 @@ const queryStops = function(minx, miny, maxx, maxy, callback) {
 		.replace("{miny}", miny)
 		.replace("{maxx}", maxx)
 		.replace("{maxy}", maxy);
+	const requery = function() {
+		const midx = (minx + maxx) / 2;
+		const midy = (miny + maxy) / 2;
+		queryStops(minx, miny, midx, midy, callback);
+		queryStops(midx, miny, maxx, midy, callback);
+		queryStops(minx, midy, midx, maxy, callback);
+		queryStops(midx, midy, maxx, maxy, callback);
+	};
+	// console.log("Querying " + url + ".");
 	got(url).then(response => {
 		const result = JSON.parse(response.body);
 		// console.log("Got " + result.pins.length + " results from " + url + ".");
@@ -63,13 +72,10 @@ const queryStops = function(minx, miny, maxx, maxy, callback) {
 		}
 		else if (maxx - minx > EPSILON)
 		{
-			const midx = (minx + maxx) / 2;
-			const midy = (miny + maxy) / 2;
-			queryStops(minx, miny, midx, midy, callback);
-			queryStops(midx, miny, maxx, midy, callback);
-			queryStops(minx, midy, midx, maxy, callback);
-			queryStops(midx, midy, maxx, maxy, callback);
+			requery();
 		}
+	}).catch(error =>{
+		requery;
 	});
 };
 
@@ -96,13 +102,18 @@ const retrieveStops = function(minx, miny, maxx, maxy) {
 		stop.stop_code = attributes.STOP_GLOBAL_ID || "";
 
 		var rs = leftPad((stop.stop_code.match(/^de:(\d+):/)||['', ''])[1], 5, '0');
-		if (RS[rs]) {
+		if (RS[rs] && stop.stop_lon && stop.stop_lat) {
 			const existingStop = stopsById[stopId]
-			if (existingStop &&(
-				stop.stop_id !== existingStop.stop_id ||
-				stop.stop_name !== existingStop.stop_name ||
-				stop.stop_lon !== existingStop.stop_lon ||
-				stop.stop_lat !== existingStop.stop_lat)) {
+			if (existingStop) {
+				if (stop.stop_id !== existingStop.stop_id ||
+					stop.stop_name !== existingStop.stop_name ||
+					stop.stop_lon !== existingStop.stop_lon ||
+					stop.stop_lat !== existingStop.stop_lat)
+				{
+//					console.log("Duplicate but different stop.");
+//					console.log("Existing stop:", existingStop);
+//					console.log("Duplicate stop:", stop);
+				}
 			}
 			else {
 				stopsById[stopId] = stop;
